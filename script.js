@@ -7,16 +7,16 @@ let mode = "random";
 let query = "";
 let isLoading = false;
 
-const API_KEY = "YOUR_PEXELS_KEY";
+const API_KEY = "YOUR_PEXELS_API_KEY";
 
-/* Modal Elements */
+/* Modal */
 
 const modal = document.createElement("div");
 modal.classList.add("modal");
 
 modal.innerHTML = `
-  <span class="close">&times;</span>
-  <img class="modal-img">
+<span class="close">&times;</span>
+<img class="modal-img">
 `;
 
 document.body.appendChild(modal);
@@ -28,7 +28,7 @@ closeBtn.onclick = () => {
   modal.style.display = "none";
 };
 
-/* Intersection Observer (Lazy Loading) */
+/* Lazy Loading */
 
 const observer = new IntersectionObserver((entries, obs) => {
   entries.forEach((entry) => {
@@ -60,6 +60,7 @@ async function loadImages() {
     const res = await fetch(
       `https://api.pexels.com/v1/curated?page=${page}&per_page=${limit}`,
       {
+        method: "GET",
         headers: {
           Authorization: API_KEY,
         },
@@ -72,7 +73,7 @@ async function loadImages() {
 
     createImages(data.photos);
   } catch (err) {
-    console.log(err);
+    console.log("Error:", err);
     removeSkeleton();
   }
 
@@ -96,6 +97,7 @@ async function searchImages() {
     const res = await fetch(
       `https://api.pexels.com/v1/search?query=${query}&page=${page}&per_page=${limit}`,
       {
+        method: "GET",
         headers: {
           Authorization: API_KEY,
         },
@@ -106,14 +108,14 @@ async function searchImages() {
 
     removeSkeleton();
 
-    if (data.photos.length === 0) {
+    if (!data.photos || data.photos.length === 0) {
       gallery.innerHTML = "<h2>No images found</h2>";
       return;
     }
 
     createImages(data.photos);
   } catch (err) {
-    console.log(err);
+    console.log("Error:", err);
     removeSkeleton();
   }
 
@@ -130,11 +132,10 @@ function createImages(images) {
     const image = document.createElement("img");
 
     image.src = "https://via.placeholder.com/300x200";
+
     image.dataset.src = img.src.large;
 
     image.classList.add("lazy-img");
-
-    /* Modal Preview */
 
     image.addEventListener("click", () => {
       modal.style.display = "flex";
@@ -142,6 +143,7 @@ function createImages(images) {
     });
 
     div.appendChild(image);
+
     gallery.appendChild(div);
 
     observer.observe(image);
@@ -204,7 +206,7 @@ window.addEventListener("scroll", () => {
   }
 });
 
-/* Search on Enter */
+/* Search */
 
 searchInput.addEventListener("keypress", (e) => {
   if (e.key === "Enter") {
