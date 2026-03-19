@@ -1,15 +1,34 @@
 const gallery = document.getElementById("gallery");
 const searchInput = document.getElementById("searchInput");
-const searchBtn = document.getElementById("searchBtn");
 
-let page = 1;
+let page = Math.floor(Math.random() * 50) + 1;
 const limit = 20;
 let mode = "random";
 let query = "";
+let isLoading = false;
 
-const API_KEY = "pkWDP3CdIJpA600y651ezvEM3iYlGHpFzEt9ixBBbPCenT6NEtIr1Ds3";
+const API_KEY = "YOUR_PEXELS_KEY";
 
-/* Intersection Observer */
+/* Modal Elements */
+
+const modal = document.createElement("div");
+modal.classList.add("modal");
+
+modal.innerHTML = `
+  <span class="close">&times;</span>
+  <img class="modal-img">
+`;
+
+document.body.appendChild(modal);
+
+const modalImg = modal.querySelector(".modal-img");
+const closeBtn = modal.querySelector(".close");
+
+closeBtn.onclick = () => {
+  modal.style.display = "none";
+};
+
+/* Intersection Observer (Lazy Loading) */
 
 const observer = new IntersectionObserver((entries, obs) => {
   entries.forEach((entry) => {
@@ -21,7 +40,6 @@ const observer = new IntersectionObserver((entries, obs) => {
 
     img.onload = () => {
       img.classList.add("loaded");
-
       resizeGridItem(img.parentElement);
     };
 
@@ -32,6 +50,10 @@ const observer = new IntersectionObserver((entries, obs) => {
 /* Load Random Images */
 
 async function loadImages() {
+  if (isLoading) return;
+
+  isLoading = true;
+
   showSkeleton(6);
 
   try {
@@ -51,13 +73,24 @@ async function loadImages() {
     createImages(data.photos);
   } catch (err) {
     console.log(err);
+    removeSkeleton();
   }
+
+  isLoading = false;
 }
 
 /* Search Images */
 
 async function searchImages() {
+  if (isLoading) return;
+
+  isLoading = true;
+
   showSkeleton(6);
+
+  if (page === 1) {
+    gallery.innerHTML = "";
+  }
 
   try {
     const res = await fetch(
@@ -73,34 +106,42 @@ async function searchImages() {
 
     removeSkeleton();
 
+    if (data.photos.length === 0) {
+      gallery.innerHTML = "<h2>No images found</h2>";
+      return;
+    }
+
     createImages(data.photos);
   } catch (err) {
     console.log(err);
+    removeSkeleton();
   }
+
+  isLoading = false;
 }
 
 /* Create Images */
 
 function createImages(images) {
-  if (page === 1 && mode === "search") {
-    gallery.innerHTML = "";
-  }
-
   images.forEach((img) => {
     const div = document.createElement("div");
-
     div.classList.add("grid-item");
 
     const image = document.createElement("img");
 
     image.src = "https://via.placeholder.com/300x200";
+    image.dataset.src = img.src.large;
 
     image.classList.add("lazy-img");
 
-    image.dataset.src = img.src.large;
+    /* Modal Preview */
+
+    image.addEventListener("click", () => {
+      modal.style.display = "flex";
+      modalImg.src = img.src.large2x;
+    });
 
     div.appendChild(image);
-
     gallery.appendChild(div);
 
     observer.observe(image);
@@ -127,7 +168,7 @@ function resizeGridItem(item) {
   item.style.gridRowEnd = "span " + rowSpan;
 }
 
-/* Skeleton */
+/* Skeleton Loading */
 
 function showSkeleton(count) {
   for (let i = 0; i < count; i++) {
@@ -146,11 +187,13 @@ function removeSkeleton() {
 /* Infinite Scroll */
 
 window.addEventListener("scroll", () => {
+  if (isLoading) return;
+
   const scrollTop = window.scrollY;
   const windowHeight = window.innerHeight;
   const fullHeight = document.body.scrollHeight;
 
-  if (scrollTop + windowHeight >= fullHeight - 200) {
+  if (scrollTop + windowHeight >= fullHeight - 500) {
     page++;
 
     if (mode === "search") {
@@ -161,18 +204,19 @@ window.addEventListener("scroll", () => {
   }
 });
 
-/* Search */
+/* Search on Enter */
 
-searchBtn.addEventListener("click", () => {
-  query = searchInput.value.trim();
+searchInput.addEventListener("keypress", (e) => {
+  if (e.key === "Enter") {
+    query = searchInput.value.trim();
 
-  if (!query) return;
+    if (!query) return;
 
-  mode = "search";
+    mode = "search";
+    page = 1;
 
-  page = 1;
-
-  searchImages();
+    searchImages();
+  }
 });
 
 /* Initial Load */
