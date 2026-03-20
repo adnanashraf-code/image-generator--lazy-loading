@@ -7,7 +7,7 @@ let mode = "random";
 let query = "";
 let isLoading = false;
 
-const API_KEY = "YOUR_PEXELS_API_KEY";
+const API_KEY = "ngEyN97apXaF72xVg5GHRoPwAJUE3fqM9xri2qpKeGepe8c0X1iL7oki";
 
 /* Modal */
 
