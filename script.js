@@ -7,206 +7,174 @@ let mode = "random";
 let query = "";
 let isLoading = false;
 
-const API_KEY = "ngEyN97apXaF72xVg5GHRoPwAJUE3fqM9xri2qpKeGepe8c0X1iL7oki";
+const API_KEY = "YOUR_API_KEY";
 
-/* Modal */
+/* MODAL */
 
 const modal = document.createElement("div");
-modal.classList.add("modal");
+modal.className = "modal";
 
 modal.innerHTML = `
-<span class="close">&times;</span>
-<img class="modal-img">
+  <span class="close">&times;</span>
+  <img class="modal-img">
 `;
 
 document.body.appendChild(modal);
 
 const modalImg = modal.querySelector(".modal-img");
-const closeBtn = modal.querySelector(".close");
 
-closeBtn.onclick = () => {
+modal.querySelector(".close").onclick = () => {
   modal.style.display = "none";
 };
 
-/* Lazy Loading */
+/* OBSERVER */
 
-const observer = new IntersectionObserver((entries, obs) => {
-  entries.forEach((entry) => {
-    if (!entry.isIntersecting) return;
+const observer = new IntersectionObserver(
+  (entries, obs) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
 
-    const img = entry.target;
+      const img = entry.target;
 
-    img.src = img.dataset.src;
+      if (img.dataset.src) {
+        img.src = img.dataset.src;
+      }
 
-    img.onload = () => {
-      img.classList.add("loaded");
-      resizeGridItem(img.parentElement);
-    };
+      obs.unobserve(img);
+    });
+  },
+  { rootMargin: "200px" },
+);
 
-    obs.unobserve(img);
+/* FETCH */
+
+async function fetchImages(url) {
+  const res = await fetch(url, {
+    headers: { Authorization: API_KEY },
   });
-});
+  return res.json();
+}
 
-/* Load Random Images */
+/* LOAD RANDOM */
 
 async function loadImages() {
   if (isLoading) return;
 
   isLoading = true;
-
   showSkeleton(6);
 
   try {
-    const res = await fetch(
+    const data = await fetchImages(
       `https://api.pexels.com/v1/curated?page=${page}&per_page=${limit}`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: API_KEY,
-        },
-      },
     );
 
-    const data = await res.json();
-
     removeSkeleton();
-
     createImages(data.photos);
   } catch (err) {
-    console.log("Error:", err);
+    console.log(err);
     removeSkeleton();
   }
 
   isLoading = false;
 }
 
-/* Search Images */
+/* SEARCH */
 
 async function searchImages() {
   if (isLoading) return;
 
   isLoading = true;
-
   showSkeleton(6);
 
-  if (page === 1) {
-    gallery.innerHTML = "";
-  }
+  if (page === 1) gallery.innerHTML = "";
 
   try {
-    const res = await fetch(
+    const data = await fetchImages(
       `https://api.pexels.com/v1/search?query=${query}&page=${page}&per_page=${limit}`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: API_KEY,
-        },
-      },
     );
-
-    const data = await res.json();
 
     removeSkeleton();
 
-    if (!data.photos || data.photos.length === 0) {
+    if (!data.photos.length) {
       gallery.innerHTML = "<h2>No images found</h2>";
       return;
     }
 
     createImages(data.photos);
   } catch (err) {
-    console.log("Error:", err);
+    console.log(err);
     removeSkeleton();
   }
 
   isLoading = false;
 }
 
-/* Create Images */
+/* CREATE IMAGES */
 
 function createImages(images) {
-  images.forEach((img) => {
+  images.forEach((imgData) => {
     const div = document.createElement("div");
-    div.classList.add("grid-item");
+    div.className = "grid-item";
 
-    const image = document.createElement("img");
+    const img = document.createElement("img");
 
-    image.src = "https://via.placeholder.com/300x200";
+    img.src = imgData.src.tiny; // blur preview
+    img.dataset.src = imgData.src.large;
 
-    image.dataset.src = img.src.large;
+    img.loading = "lazy";
 
-    image.classList.add("lazy-img");
+    img.onload = () => {
+      img.classList.add("loaded");
+    };
 
-    image.addEventListener("click", () => {
+    img.onerror = () => {
+      img.src = imgData.src.medium || imgData.src.small;
+      img.classList.add("loaded");
+    };
+
+    img.onclick = () => {
       modal.style.display = "flex";
-      modalImg.src = img.src.large2x;
-    });
+      modalImg.src = imgData.src.large2x;
+    };
 
-    div.appendChild(image);
-
+    div.appendChild(img);
     gallery.appendChild(div);
 
-    observer.observe(image);
+    observer.observe(img);
   });
 }
 
-/* Masonry Layout */
-
-function resizeGridItem(item) {
-  const rowHeight = parseInt(
-    window.getComputedStyle(gallery).getPropertyValue("grid-auto-rows"),
-  );
-
-  const rowGap = parseInt(
-    window.getComputedStyle(gallery).getPropertyValue("gap"),
-  );
-
-  const img = item.querySelector("img");
-
-  const itemHeight = img.getBoundingClientRect().height;
-
-  const rowSpan = Math.ceil((itemHeight + rowGap) / (rowHeight + rowGap));
-
-  item.style.gridRowEnd = "span " + rowSpan;
-}
-
-/* Skeleton Loading */
+/* SKELETON */
 
 function showSkeleton(count) {
   for (let i = 0; i < count; i++) {
+    const div = document.createElement("div");
+    div.className = "grid-item";
+
     const skeleton = document.createElement("div");
+    skeleton.className = "skeleton";
 
-    skeleton.classList.add("skeleton");
-
-    gallery.appendChild(skeleton);
+    div.appendChild(skeleton);
+    gallery.appendChild(div);
   }
 }
 
 function removeSkeleton() {
-  document.querySelectorAll(".skeleton").forEach((s) => s.remove());
+  document.querySelectorAll(".skeleton").forEach((el) => el.remove());
 }
 
-/* Infinite Scroll */
+/* SCROLL */
 
 window.addEventListener("scroll", () => {
   if (isLoading) return;
 
-  const scrollTop = window.scrollY;
-  const windowHeight = window.innerHeight;
-  const fullHeight = document.body.scrollHeight;
-
-  if (scrollTop + windowHeight >= fullHeight - 500) {
+  if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
     page++;
-
-    if (mode === "search") {
-      searchImages();
-    } else {
-      loadImages();
-    }
+    mode === "search" ? searchImages() : loadImages();
   }
 });
 
-/* Search */
+/* SEARCH */
 
 searchInput.addEventListener("keypress", (e) => {
   if (e.key === "Enter") {
@@ -216,11 +184,10 @@ searchInput.addEventListener("keypress", (e) => {
 
     mode = "search";
     page = 1;
-
     searchImages();
   }
 });
 
-/* Initial Load */
+/* INIT */
 
 loadImages();
